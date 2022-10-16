@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-MQTT_SERVER = "localhost"
+MQTT_SERVER = "test.mosquitto.org"
 TOPICS = ["Status", "Tachometer", "UnderhangAX_plot", "UnderhangRa_plot_", "UnderhangTa_plot", 
                     "OverhangAx_plot", "OverhangRa_plot", "OverhangTa_plot", "Microphone_plot"]
 
@@ -26,5 +26,5 @@ def on_message(client, userdata, msg):
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
-client.connect(MQTT_SERVER, 1883, 60)
+client.connect(MQTT_SERVER, 80, 60)
 client.loop_forever()
