@@ -10,15 +10,20 @@ import os
 CHAVE_API = "5425249049:AAEptrZ8R8tGGOYIPVmzcJZHb0kpFfqPJTY"
 bot = telebot.TeleBot(CHAVE_API)
 
-MQTT_SERVER = "localhost"
-TOPICS = ["Status", "Tachometer", "UnderhangAX_plot", "UnderhangRa_plot_", "UnderhangTa_plot", 
-                    "OverhangAx_plot", "OverhangRa_plot", "OverhangTa_plot", "Microphone_plot"]
+MQTT_SERVER = "test.mosquitto.org"
+TOPICS = ["Status", "Change_status", "Tachometer", "UnderhangAX_plot", "UnderhangRa_plot_", "UnderhangTa_plot", 
+                                    "OverhangAx_plot", "OverhangRa_plot", "OverhangTa_plot", "Microphone_plot"]
+
 
 client = mqtt.Client()
 
 conn = sqlite3.connect('database.db', check_same_thread=False)
 cursor = conn.cursor()
 
+# initial_content = ["Waiting to connect..." for i in range(2)]
+# status, zibs = initial_content
+response = "Waiting to connect..."
+is_image = True
 
 def verify_and_create_db():
     #falta criar o timestamp
@@ -80,9 +85,15 @@ def verify_and_save_user(chat_id, first_name, last_name):
 
 @bot.message_handler(commands=["status"])
 def status(mensagem):
+    global is_image, response
+    is_image = False
+
     client.subscribe(TOPICS[0])
     time.sleep(1)
-    bot.send_photo(mensagem.chat.id, photo=open('Status.jpeg', 'rb')) #send image
+
+    bot.send_message(mensagem.chat.id, response)
+    client.unsubscribe(TOPICS[0])
+ 
 
 
 @bot.message_handler(commands=["graphics"])
@@ -92,11 +103,111 @@ def graphics(mensagem):
     #Envia antes de tudo a imagem contendo informações do que é cada sensor 
     
     texto = """
-    O que você quer? (Clique em uma opção)
-    /pizza Pizza
-    /hamburguer Hamburguer
-    /salada Salada"""
+Choose a device measurement graphic:
+    
+----------------------------------------------------------------
+
+/tachometer - Tachometer graphic
+
+
+/ua_axial - Underhang Accelerometer axial graphic
+
+/ua_radial - Underhang Accelerometer radial graphic
+
+/ua_tangential - Underhang Accelerometer axial graphic
+
+
+/oa_axial - Overhang Accelerometer axial graphic
+
+/oa_radial - Overhang Accelerometer radial graphic
+
+/oa_tangential - Overhang Accelerometer axial graphic
+
+
+/microphone - Microphone graphic
+"""
     bot.send_message(mensagem.chat.id, texto)
+
+@bot.message_handler(commands=["tachometer"])
+def plot_tachometer(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[2])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[2] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[2])
+
+@bot.message_handler(commands=["ua_axial"])
+def plot_ua_axial(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[3])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[3] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[3])
+
+@bot.message_handler(commands=["ua_radial"])
+def plot_ua_radial(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[4])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[4] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[4])
+
+@bot.message_handler(commands=["ua_tangential"])
+def plot_ua_tangential(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[5])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[5] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[5])
+
+@bot.message_handler(commands=["oa_axial"])
+def plot_oa_axial(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[6])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[6] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[6])
+
+@bot.message_handler(commands=["oa_radial"])
+def plot_oa_radial(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[7])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[7] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[7])
+
+@bot.message_handler(commands=["oa_tangential"])
+def plot_oa_tangential(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[8])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[8] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[8])
+
+@bot.message_handler(commands=["microphone"])
+def microphone(mensagem):
+    global is_image, responses
+    is_image = True
+
+    client.subscribe(TOPICS[9])
+    time.sleep(1)
+    bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[9] + ".jpeg" , 'rb'))
+    client.unsubscribe(TOPICS[9])
+
 
 @bot.message_handler(commands=["notify_start"])
 def notify_start(mensagem):
@@ -116,6 +227,16 @@ E-mail: gabriel_j.sanches@hotmail.com
     """
     bot.send_message(mensagem.chat.id, text)
 
+@bot.message_handler(commands=["set_status"])
+def set_status(mensagem):
+    global is_image
+    is_image = False
+    #vou ter que importar as possibilities e dar um jeito de fazer com que eu possa setar por meio de um número que corresponda com a alternativa
+    client.subscribe(TOPICS[1])
+    text = """
+STATUS CHANGED!!!
+    """
+    bot.send_message(mensagem.chat.id, text)
 
 def verificar(mensagem):
     print(mensagem)
@@ -157,28 +278,24 @@ Thanks for use my application!! \U0001F604 \U0001F604"""
 def bot_polling():
     bot.polling()
 
-def print_number():
-    i = 1
-    while True:
-        status = input("Status aplicação: ")
-        print(status)    
-        time.sleep(1)
-
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-
     # for i in range (len(TOPICS)):
     #     client.subscribe(TOPICS[i])
 
 def on_message(client, userdata, msg):
-    # more callbacks, etc
-    # Create a file with write byte permission
+    global is_image, response
 
-    f = open(msg.topic + '.jpeg', "wb")
-    print(msg.payload)
-    f.write(msg.payload)
-    print("Image Received")
-    f.close()
+    if is_image == False:
+        response = str(msg.payload.decode())
+    else:
+        f = open("images/" + msg.topic + '.jpeg', "wb")
+        print(msg.payload)
+        f.write(msg.payload)
+        print("Image Received")
+        f.close()
+        
+
 
     
 
