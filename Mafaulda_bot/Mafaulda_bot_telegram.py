@@ -1,8 +1,11 @@
 # https://unicode.org/emoji/charts/full-emoji-list.html
 import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
 from threading import Thread
+from sqlalchemy import null
 import telebot
 import sqlite3
+import pandas as pd
 import time
 import os
 
@@ -20,10 +23,12 @@ client = mqtt.Client()
 conn = sqlite3.connect('database.db', check_same_thread=False)
 cursor = conn.cursor()
 
-# initial_content = ["Waiting to connect..." for i in range(2)]
-# status, zibs = initial_content
+possibilities = pd.read_csv("possibilities.csv", index_col=None)
+possibilities = possibilities.values.tolist()
+
 response = "Waiting to connect..."
-is_image = True
+is_image = False
+change_notify = False
 
 def verify_and_create_db():
     #falta criar o timestamp
@@ -49,7 +54,7 @@ def verify_and_create_db():
         CREATE TABLE users (
             chat_id INTEGER NOT NULL PRIMARY KEY,
             first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
+            last_name TEXT,
             notify INTEGER NOT NULL
             );
         """)
@@ -58,6 +63,20 @@ def verify_and_create_db():
 
     else:
         print("User table already exist!")
+
+
+def send_user_notify(reponses):
+    try:
+        cursor.execute("SELECT * FROM users;")
+
+        for user in cursor.fetchall():
+            print(user)
+            if user[3] == 1:
+                bot.send_message(user[0], response)
+    except:
+        print("Error into send_user_notify")
+
+    
 
 def verify_and_save_user(chat_id, first_name, last_name):
     new_user = True
@@ -88,19 +107,28 @@ def status(mensagem):
     global is_image, response
     is_image = False
 
-    client.subscribe(TOPICS[0])
-    time.sleep(1)
+    try:
+        cursor.execute("SELECT * FROM users WHERE chat_id = {};" .format(mensagem.chat.id))
+        user = cursor.fetchall()
+    except:
+        print("Falhou")
 
-    bot.send_message(mensagem.chat.id, response)
-    client.unsubscribe(TOPICS[0])
- 
+    if user[0][3] == 0:
+        client.subscribe(TOPICS[0])
+        time.sleep(1)
+
+        bot.send_message(mensagem.chat.id, response)
+        client.unsubscribe(TOPICS[0])
+    else:
+        client.unsubscribe(TOPICS[0])
+        time.sleep(1)
+        client.unsubscribe(TOPICS[0])
+        bot.send_message(mensagem.chat.id, response)
+        
 
 
 @bot.message_handler(commands=["graphics"])
 def graphics(mensagem):
-    #Options
-    #UA axial, UA radial, UA tangential, OA axial, OA radial, OA tangential, Microphone
-    #Envia antes de tudo a imagem contendo informações do que é cada sensor 
     
     texto = """
 Choose a device measurement graphic:
@@ -137,6 +165,7 @@ def plot_tachometer(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[2] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[2])
+    is_image = False
 
 @bot.message_handler(commands=["ua_axial"])
 def plot_ua_axial(mensagem):
@@ -147,6 +176,7 @@ def plot_ua_axial(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[3] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[3])
+    is_image = False
 
 @bot.message_handler(commands=["ua_radial"])
 def plot_ua_radial(mensagem):
@@ -157,6 +187,7 @@ def plot_ua_radial(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[4] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[4])
+    is_image = False
 
 @bot.message_handler(commands=["ua_tangential"])
 def plot_ua_tangential(mensagem):
@@ -167,6 +198,7 @@ def plot_ua_tangential(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[5] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[5])
+    is_image = False
 
 @bot.message_handler(commands=["oa_axial"])
 def plot_oa_axial(mensagem):
@@ -177,6 +209,7 @@ def plot_oa_axial(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[6] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[6])
+    is_image = False
 
 @bot.message_handler(commands=["oa_radial"])
 def plot_oa_radial(mensagem):
@@ -187,6 +220,7 @@ def plot_oa_radial(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[7] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[7])
+    is_image = False
 
 @bot.message_handler(commands=["oa_tangential"])
 def plot_oa_tangential(mensagem):
@@ -197,6 +231,7 @@ def plot_oa_tangential(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[8] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[8])
+    is_image = False
 
 @bot.message_handler(commands=["microphone"])
 def microphone(mensagem):
@@ -207,15 +242,30 @@ def microphone(mensagem):
     time.sleep(1)
     bot.send_photo(mensagem.chat.id, photo=open("images/" + TOPICS[9] + ".jpeg" , 'rb'))
     client.unsubscribe(TOPICS[9])
+    is_image = False
 
 
 @bot.message_handler(commands=["notify_start"])
 def notify_start(mensagem):
-    bot.send_message(mensagem.chat.id, "Saindo o Brabo: em 10min chega ai")
+    cursor.execute("""
+        UPDATE users
+        SET notify = 1
+        WHERE
+        chat_id = {}; """ .format(mensagem.chat.id))
+
+    conn.commit()
+    bot.send_message(mensagem.chat.id, "Notify started!")
 
 @bot.message_handler(commands=["notify_stop"])
 def notify_stop(mensagem):
-    bot.send_message(mensagem.chat.id, "Não tem salada não, clique aqui para iniciar: /iniciar")
+    cursor.execute("""
+    UPDATE users
+    SET notify = 0
+    WHERE
+    chat_id = {}; """ .format(mensagem.chat.id))
+
+    conn.commit()
+    bot.send_message(mensagem.chat.id, "Notify stoped!")
 
 @bot.message_handler(commands=["contact"])
 def contact(mensagem):
@@ -231,19 +281,35 @@ E-mail: gabriel_j.sanches@hotmail.com
 def set_status(mensagem):
     global is_image
     is_image = False
-    #vou ter que importar as possibilities e dar um jeito de fazer com que eu possa setar por meio de um número que corresponda com a alternativa
-    client.subscribe(TOPICS[1])
-    text = """
-STATUS CHANGED!!!
-    """
+    
+    text = "This is all possibilities: \n\n" 
+    for i in range (len(possibilities)):
+        string = str(i) + "-" + possibilities[i][0] + "\n"
+        text = text + string
+
+    text = text + "\n\n To set a new status use the following notation: \n\n Set_status {possibilities_index}"
     bot.send_message(mensagem.chat.id, text)
 
-def verificar(mensagem):
-    print(mensagem)
+
+def verify_change_status(mensagem):
+    if "Set_status" in mensagem.text:
+        return True
+
+@bot.message_handler(func=verify_change_status)
+def change_status(mensagem):
+    space_index = mensagem.text.find(" ")
+    number = int(mensagem.text[space_index+1:])
+
+    publish.single(TOPICS[1], possibilities[number][0], hostname= MQTT_SERVER, retain=True) 
+    bot.send_message(mensagem.chat.id, "Status changed to: " + possibilities[number][0])
+
+def verify(mensagem):
+    print(mensagem.text)
     return True
 
-@bot.message_handler(func=verificar)
-def responder(mensagem):
+@bot.message_handler(func=verify)
+def answer(mensagem):
+    global chat_id
     texto = """
 
 
@@ -271,7 +337,8 @@ Thanks for use my application!! \U0001F604 \U0001F604"""
     chat_id = mensagem.chat.id
     first_name = mensagem.chat.first_name
     last_name = mensagem.chat.last_name
-
+    
+    
     verify_and_save_user(chat_id, first_name, last_name)
     bot.reply_to(mensagem, texto)
 
@@ -280,14 +347,15 @@ def bot_polling():
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    # for i in range (len(TOPICS)):
-    #     client.subscribe(TOPICS[i])
+    client.subscribe(TOPICS[0])
+    # check_user_notify()
 
 def on_message(client, userdata, msg):
     global is_image, response
 
     if is_image == False:
         response = str(msg.payload.decode())
+        send_user_notify(response)
     else:
         f = open("images/" + msg.topic + '.jpeg', "wb")
         print(msg.payload)
@@ -295,9 +363,6 @@ def on_message(client, userdata, msg):
         print("Image Received")
         f.close()
         
-
-
-    
 
 def connect_mqtt():
 
@@ -307,6 +372,7 @@ def connect_mqtt():
     client.loop_forever()
 
 if __name__ == "__main__":
+
     verify_and_create_db()
     t1 = Thread(target=bot.polling)
     t2 = Thread(target=connect_mqtt)

@@ -57,7 +57,18 @@ def input_insert_data():
 
     conn.commit()
 
+def update_data(chat_id):
 
+    cursor.execute("""
+    UPDATE users
+    SET first_name = 'Toronto',
+    last_name = 'ON',
+    notify = 'M5P 2N7'
+WHERE
+    chat_id = {};
+    """ .format(chat_id))
+
+    conn.commit()
 
 def verify_and_save_user(chat_id):
     new_user = get_data(chat_id)
@@ -66,28 +77,37 @@ def verify_and_save_user(chat_id):
     else:
         pass
 
-def get_data(chat_id):
+def get_specific_data(chat_id):
 
     try:
         cursor.execute("SELECT * FROM users WHERE chat_id = {};" .format(chat_id))
-
-        for line in cursor.fetchall():
-            print(line)
-            if line[0] == int(chat_id):
-                print("User already saved!!")
-                return False
+        print(cursor.fetchall())
     except:
         print("User dont exist")
         return True
 
+def get_data():
+
+    try:
+        cursor.execute("SELECT * FROM users;")
+
+        for line in cursor.fetchall():
+            print(line[2])
+
+        
+    except:
+        print("User dont exist")
+        return True
             
 
 
 if __name__ == "__main__":
     
-    verify_and_create_db()
-    verify_and_save_user(12345)
+    # verify_and_create_db()
+    # verify_and_save_user(12345)
     #input_insert_data()
-    #get_data(1234)
+    get_specific_data(1046238961)
+    update_data(1046238961)
+    get_data()
     conn.close()
     
