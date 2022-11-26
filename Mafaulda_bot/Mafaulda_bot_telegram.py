@@ -29,6 +29,7 @@ possibilities = possibilities.values.tolist()
 response = "Waiting to connect..."
 is_image = False
 change_notify = False
+status_set = False
 
 def verify_and_create_db():
     #falta criar o timestamp
@@ -66,13 +67,19 @@ def verify_and_create_db():
 
 
 def send_user_notify(reponses):
+    global status_set
     try:
-        cursor.execute("SELECT * FROM users;")
+        if status_set == True:
+            cursor.execute("SELECT * FROM users;")
 
-        for user in cursor.fetchall():
-            print(user)
-            if user[3] == 1:
-                bot.send_message(user[0], response)
+            for user in cursor.fetchall():
+                print(user)
+                if user[3] == 1:
+                    bot.send_message(user[0], response)
+                    
+            status_set = False
+        else:
+            pass
     except:
         print("Error into send_user_notify")
 
@@ -282,6 +289,7 @@ def set_status(mensagem):
     global is_image
     is_image = False
     
+    
     text = "This is all possibilities: \n\n" 
     for i in range (len(possibilities)):
         string = str(i) + "-" + possibilities[i][0] + "\n"
@@ -297,11 +305,14 @@ def verify_change_status(mensagem):
 
 @bot.message_handler(func=verify_change_status)
 def change_status(mensagem):
+    global status_set
+
     space_index = mensagem.text.find(" ")
     number = int(mensagem.text[space_index+1:])
 
     publish.single(TOPICS[1], possibilities[number][0], hostname= MQTT_SERVER, retain=True) 
     bot.send_message(mensagem.chat.id, "Status changed to: " + possibilities[number][0])
+    status_set = True
 
 def verify(mensagem):
     print(mensagem.text)
