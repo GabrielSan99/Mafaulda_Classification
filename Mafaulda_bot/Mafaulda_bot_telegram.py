@@ -29,7 +29,7 @@ possibilities = possibilities.values.tolist()
 response = "Waiting to connect..."
 is_image = False
 change_notify = False
-status_set = False
+last_status = "Waiting to connect..."
 
 def verify_and_create_db():
     #falta criar o timestamp
@@ -66,20 +66,14 @@ def verify_and_create_db():
         print("User table already exist!")
 
 
-def send_user_notify(reponses):
-    global status_set
+def send_status_to_user(reponses):
     try:
-        if status_set == True:
-            cursor.execute("SELECT * FROM users;")
+        cursor.execute("SELECT * FROM users;")
 
-            for user in cursor.fetchall():
-                print(user)
-                if user[3] == 1:
-                    bot.send_message(user[0], response)
-                    
-            status_set = False
-        else:
-            pass
+        for user in cursor.fetchall():
+            print(user)
+            if user[3] == 1:
+                bot.send_message(user[0], response)
     except:
         print("Error into send_user_notify")
 
@@ -362,17 +356,25 @@ def on_connect(client, userdata, flags, rc):
     # check_user_notify()
 
 def on_message(client, userdata, msg):
-    global is_image, response
+    global is_image, response, last_status
 
-    if is_image == False:
+    if  last_status == "Waiting to connect...":
         response = str(msg.payload.decode())
-        send_user_notify(response)
+        last_status = response
+
     else:
-        f = open("images/" + msg.topic + '.jpeg', "wb")
-        print(msg.payload)
-        f.write(msg.payload)
-        print("Image Received")
-        f.close()
+        
+        if is_image == False:
+            response = str(msg.payload.decode())
+            if last_status != response:
+                send_status_to_user(response)
+                last_status = response
+        else:
+            f = open("images/" + msg.topic + '.jpeg', "wb")
+            print(msg.payload)
+            f.write(msg.payload)
+            print("Image Received")
+            f.close()
         
 
 def connect_mqtt():
